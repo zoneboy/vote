@@ -136,7 +136,7 @@ voting-platform/
 ### 1. Prerequisites
 - Node.js 18+
 - PostgreSQL database (Neon account recommended)
-- Email service (Resend/SendGrid account)
+- Gmail account with App Password (see GMAIL-SETUP.md)
 
 ### 2. Clone and Install
 ```bash
@@ -154,9 +154,9 @@ DATABASE_URL="postgresql://user:password@host/database"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="generate-random-secret-here"
 
-# Email (Resend)
-RESEND_API_KEY="re_xxxxxxxxxxxx"
-EMAIL_FROM="noreply@yourdomain.com"
+# Gmail (for sending verification emails)
+GMAIL_USER="your-email@gmail.com"
+GMAIL_APP_PASSWORD="your-16-char-app-password"
 
 # Admin
 ADMIN_EMAILS="admin@example.com,admin2@example.com"

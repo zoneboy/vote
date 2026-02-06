@@ -5,7 +5,7 @@ This guide covers deploying the voting platform to Netlify (or Vercel).
 ## Prerequisites
 
 1. A Neon PostgreSQL database
-2. A Resend account for email
+2. A Gmail account with App Password (FREE!)
 3. A Netlify or Vercel account
 4. Your code in a Git repository (GitHub, GitLab, etc.)
 
@@ -16,12 +16,19 @@ This guide covers deploying the voting platform to Netlify (or Vercel).
 3. Copy your connection string (it looks like `postgresql://user:pass@host/db`)
 4. Save this for the DATABASE_URL environment variable
 
-## Step 2: Email Service (Resend)
+## Step 2: Gmail App Password Setup
 
-1. Sign up at [Resend](https://resend.com)
-2. Verify your domain OR use resend.dev for testing
-3. Generate an API key
-4. Save this for RESEND_API_KEY
+1. Enable 2-Step Verification on your Gmail:
+   - Go to [myaccount.google.com](https://myaccount.google.com)
+   - Security → 2-Step Verification → Enable it
+2. Generate App Password:
+   - Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+   - Select "Mail" and "Other (Custom name)"
+   - Name it "Voting Platform"
+   - Copy the 16-character password (remove spaces)
+3. Save for environment variables
+
+**See GMAIL-SETUP.md for detailed instructions**
 
 ## Step 3: Deploy to Netlify
 
