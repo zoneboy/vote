@@ -41,6 +41,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check that verifiedEmail is defined before proceeding
+    if (!verifiedEmail) {
+      return NextResponse.json(
+        { success: false, error: 'Email verification failed' },
+        { status: 401 }
+      );
+    }
+
     // Authenticate user (create if doesn't exist)
     const user = await authenticateUser(verifiedEmail);
 
