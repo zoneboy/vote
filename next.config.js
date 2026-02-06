@@ -5,12 +5,13 @@ const nextConfig = {
     domains: ['localhost'],
     formats: ['image/webp'],
   },
+  // Disable optimizeCss experimental feature that requires critters
   experimental: {
-    optimizeCss: true,
+    // optimizeCss: true,  // Disabled - requires critters package
   },
   compress: true,
   poweredByHeader: false,
-  // Optimize for Nigeria networks
+  // Set output to standalone for better Netlify compatibility
   output: 'standalone',
 };
 
