@@ -9,10 +9,6 @@
     --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   }
 
-  * {
-    @apply border-border;
-  }
-
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
   }
