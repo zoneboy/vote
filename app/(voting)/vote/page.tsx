@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { VotingCard } from '@/components/voting/VotingCard';
 import { LoginForm } from '@/components/voting/LoginForm';
 import { fetcher } from '@/lib/utils';
 import type { CategoryWithNominees } from '@/types';
-import { useRouter } from 'next/navigation';
 
 export default function VotePage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [categories, setCategories] = useState<CategoryWithNominees[]>([]);
   const [selectedVotes, setSelectedVotes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -21,17 +22,27 @@ export default function VotePage() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isAdmin) {
       loadCategories();
+    } else if (isAuthenticated && isAdmin) {
+      // Redirect admin to dashboard
+      router.push('/admin/dashboard');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isAdmin, router]);
 
   const checkAuth = async () => {
     try {
       const result = await fetcher('/api/auth/verify');
       setIsAuthenticated(result.success);
+      
+      // Check if user is admin by fetching user info
+      if (result.success) {
+        const userResult = await fetcher('/api/auth/me');
+        setIsAdmin(userResult.user?.isAdmin || false);
+      }
     } catch {
       setIsAuthenticated(false);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
@@ -104,7 +115,19 @@ export default function VotePage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-pattern p-4">
-        <LoginForm onSuccess={() => setIsAuthenticated(true)} />
+        <LoginForm />
+      </div>
+    );
+  }
+
+  // If admin, component will redirect in useEffect
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-pattern">
+        <div className="text-center">
+          <div className="inline-block w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-gray-600">Redirecting to admin dashboard...</p>
+        </div>
       </div>
     );
   }

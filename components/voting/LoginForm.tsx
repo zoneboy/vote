@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { fetcher } from '@/lib/utils';
 
 interface LoginFormProps {
-  onSuccess: () => void;
+  onSuccess?: () => void;
 }
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [otp, setOtp] = useState('');
@@ -48,7 +50,14 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       });
 
       if (result.success) {
-        onSuccess();
+        // Check if user is admin and redirect accordingly
+        if (result.user?.isAdmin) {
+          router.push('/admin/dashboard');
+        } else if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push('/vote');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Invalid code');

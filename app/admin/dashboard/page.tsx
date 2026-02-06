@@ -1,17 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetcher, formatDateTime, downloadCSV } from '@/lib/utils';
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    loadStats();
+    checkAdminAccess();
   }, []);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadStats();
+    }
+  }, [isAdmin]);
+
+  const checkAdminAccess = async () => {
+    try {
+      const result = await fetcher('/api/auth/me');
+      if (result.success && result.user?.isAdmin) {
+        setIsAdmin(true);
+      } else {
+        router.push('/vote');
+      }
+    } catch {
+      router.push('/vote');
+    }
+  };
 
   const loadStats = async () => {
     try {
@@ -33,7 +55,7 @@ export default function AdminDashboard() {
     }
   };
 
-  if (loading) {
+  if (loading || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

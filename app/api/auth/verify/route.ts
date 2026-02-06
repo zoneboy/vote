@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
       path: '/',
     });
 
+    // Return user info including admin status
     return NextResponse.json({
       success: true,
       user: {
