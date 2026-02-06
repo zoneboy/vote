@@ -9,18 +9,18 @@ const sql = postgres(process.env.DATABASE_URL!, {
 
 // User operations
 export async function createUser(email: string): Promise<User> {
-  const [user] = await sql`
+  const [user] = await sql<User[]>`
     INSERT INTO users (email, is_admin, created_at)
     VALUES (${email}, false, NOW())
     ON CONFLICT (email) DO UPDATE
     SET last_login = NOW()
     RETURNING id, email, is_admin as "isAdmin", created_at as "createdAt", last_login as "lastLogin"
   `;
-  return user;
+  return user as User;
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const [user] = await sql`
+  const [user] = await sql<User[]>`
     SELECT id, email, is_admin as "isAdmin", created_at as "createdAt", last_login as "lastLogin"
     FROM users
     WHERE email = ${email}
@@ -29,7 +29,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const [user] = await sql`
+  const [user] = await sql<User[]>`
     SELECT id, email, is_admin as "isAdmin", created_at as "createdAt", last_login as "lastLogin"
     FROM users
     WHERE id = ${id}
@@ -48,7 +48,7 @@ export async function makeUserAdmin(email: string): Promise<boolean> {
 
 // Category operations
 export async function getAllCategories(): Promise<Category[]> {
-  const categories = await sql`
+  const categories = await sql<Category[]>`
     SELECT id, name, description, display_order as "displayOrder", 
            created_at as "createdAt", updated_at as "updatedAt"
     FROM categories
@@ -58,7 +58,7 @@ export async function getAllCategories(): Promise<Category[]> {
 }
 
 export async function getCategoryById(id: string): Promise<Category | null> {
-  const [category] = await sql`
+  const [category] = await sql<Category[]>`
     SELECT id, name, description, display_order as "displayOrder",
            created_at as "createdAt", updated_at as "updatedAt"
     FROM categories
@@ -72,13 +72,13 @@ export async function createCategory(data: {
   description?: string;
   displayOrder?: number;
 }): Promise<Category> {
-  const [category] = await sql`
+  const [category] = await sql<Category[]>`
     INSERT INTO categories (name, description, display_order)
     VALUES (${data.name}, ${data.description || null}, ${data.displayOrder || 0})
     RETURNING id, name, description, display_order as "displayOrder",
               created_at as "createdAt", updated_at as "updatedAt"
   `;
-  return category;
+  return category as Category;
 }
 
 export async function updateCategory(
@@ -105,7 +105,7 @@ export async function updateCategory(
 
   updates.push('updated_at = NOW()');
 
-  const [category] = await sql`
+  const [category] = await sql<Category[]>`
     UPDATE categories
     SET ${sql(updates.join(', '))}
     WHERE id = ${id}
@@ -122,7 +122,7 @@ export async function deleteCategory(id: string): Promise<boolean> {
 
 // Nominee operations
 export async function getNomineesByCategory(categoryId: string): Promise<Nominee[]> {
-  const nominees = await sql`
+  const nominees = await sql<Nominee[]>`
     SELECT id, category_id as "categoryId", name, description, image_url as "imageUrl",
            display_order as "displayOrder", created_at as "createdAt"
     FROM nominees
@@ -133,7 +133,7 @@ export async function getNomineesByCategory(categoryId: string): Promise<Nominee
 }
 
 export async function getNomineeById(id: string): Promise<Nominee | null> {
-  const [nominee] = await sql`
+  const [nominee] = await sql<Nominee[]>`
     SELECT id, category_id as "categoryId", name, description, image_url as "imageUrl",
            display_order as "displayOrder", created_at as "createdAt"
     FROM nominees
@@ -149,14 +149,14 @@ export async function createNominee(data: {
   imageUrl?: string;
   displayOrder?: number;
 }): Promise<Nominee> {
-  const [nominee] = await sql`
+  const [nominee] = await sql<Nominee[]>`
     INSERT INTO nominees (category_id, name, description, image_url, display_order)
     VALUES (${data.categoryId}, ${data.name}, ${data.description || null}, 
             ${data.imageUrl || null}, ${data.displayOrder || 0})
     RETURNING id, category_id as "categoryId", name, description, image_url as "imageUrl",
               display_order as "displayOrder", created_at as "createdAt"
   `;
-  return nominee;
+  return nominee as Nominee;
 }
 
 export async function updateNominee(
@@ -172,7 +172,7 @@ export async function updateNominee(
 
   if (Object.keys(updates).length === 0) return getNomineeById(id);
 
-  const [nominee] = await sql`
+  const [nominee] = await sql<Nominee[]>`
     UPDATE nominees
     SET ${sql(updates)}
     WHERE id = ${id}
@@ -195,7 +195,7 @@ export async function castVote(data: {
   ipAddress?: string;
   userAgent?: string;
 }): Promise<Vote> {
-  const [vote] = await sql`
+  const [vote] = await sql<Vote[]>`
     INSERT INTO votes (user_id, category_id, nominee_id, ip_address, user_agent)
     VALUES (${data.userId}, ${data.categoryId}, ${data.nomineeId}, 
             ${data.ipAddress || null}, ${data.userAgent || null})
@@ -205,11 +205,11 @@ export async function castVote(data: {
               nominee_id as "nomineeId", ip_address as "ipAddress",
               user_agent as "userAgent", voted_at as "votedAt"
   `;
-  return vote;
+  return vote as Vote;
 }
 
 export async function getUserVotes(userId: string): Promise<Vote[]> {
-  const votes = await sql`
+  const votes = await sql<Vote[]>`
     SELECT id, user_id as "userId", category_id as "categoryId",
            nominee_id as "nomineeId", ip_address as "ipAddress",
            user_agent as "userAgent", voted_at as "votedAt"
@@ -224,16 +224,16 @@ export async function hasUserVotedInCategory(
   userId: string,
   categoryId: string
 ): Promise<boolean> {
-  const [result] = await sql`
+  const [result] = await sql<{ count: string }[]>`
     SELECT COUNT(*) as count
     FROM votes
     WHERE user_id = ${userId} AND category_id = ${categoryId}
   `;
-  return result.count > 0;
+  return parseInt(result.count) > 0;
 }
 
 export async function getVoteCountByNominee(nomineeId: string): Promise<number> {
-  const [result] = await sql`
+  const [result] = await sql<{ count: string }[]>`
     SELECT COUNT(*) as count
     FROM votes
     WHERE nominee_id = ${nomineeId}
@@ -242,7 +242,7 @@ export async function getVoteCountByNominee(nomineeId: string): Promise<number> 
 }
 
 export async function getVoteCountByCategory(categoryId: string): Promise<number> {
-  const [result] = await sql`
+  const [result] = await sql<{ count: string }[]>`
     SELECT COUNT(*) as count
     FROM votes
     WHERE category_id = ${categoryId}
@@ -251,7 +251,11 @@ export async function getVoteCountByCategory(categoryId: string): Promise<number
 }
 
 export async function getCategoryResults(categoryId: string) {
-  const results = await sql`
+  const results = await sql<Array<{
+    nomineeId: string;
+    nomineeName: string;
+    voteCount: string;
+  }>>`
     SELECT 
       n.id as "nomineeId",
       n.name as "nomineeName",
@@ -266,7 +270,13 @@ export async function getCategoryResults(categoryId: string) {
 }
 
 export async function getAllResults() {
-  const results = await sql`
+  const results = await sql<Array<{
+    categoryId: string;
+    categoryName: string;
+    nomineeId: string;
+    nomineeName: string;
+    voteCount: string;
+  }>>`
     SELECT 
       c.id as "categoryId",
       c.name as "categoryName",
@@ -284,7 +294,7 @@ export async function getAllResults() {
 
 // Settings operations
 export async function getSetting(key: string): Promise<string | null> {
-  const [setting] = await sql`
+  const [setting] = await sql<{ value: string }[]>`
     SELECT value FROM settings WHERE key = ${key}
   `;
   return setting?.value || null;
@@ -319,7 +329,12 @@ export async function getSettings(): Promise<Settings> {
 
 // Statistics
 export async function getAdminStats() {
-  const [stats] = await sql`
+  const [stats] = await sql<Array<{
+    totalVotes: string;
+    totalUsers: string;
+    totalCategories: string;
+    totalNominees: string;
+  }>>`
     SELECT 
       (SELECT COUNT(*) FROM votes) as "totalVotes",
       (SELECT COUNT(*) FROM users) as "totalUsers",
@@ -327,7 +342,13 @@ export async function getAdminStats() {
       (SELECT COUNT(*) FROM nominees) as "totalNominees"
   `;
 
-  const recentVotes = await sql`
+  const recentVotes = await sql<Array<{
+    id: string;
+    votedAt: Date;
+    email: string;
+    categoryName: string;
+    nomineeName: string;
+  }>>`
     SELECT v.id, v.voted_at as "votedAt", u.email, c.name as "categoryName", n.name as "nomineeName"
     FROM votes v
     JOIN users u ON u.id = v.user_id
@@ -337,7 +358,11 @@ export async function getAdminStats() {
     LIMIT 10
   `;
 
-  const topCategories = await sql`
+  const topCategories = await sql<Array<{
+    categoryId: string;
+    name: string;
+    voteCount: string;
+  }>>`
     SELECT c.id as "categoryId", c.name, COUNT(v.id) as "voteCount"
     FROM categories c
     LEFT JOIN votes v ON v.category_id = c.id
@@ -347,14 +372,17 @@ export async function getAdminStats() {
   `;
 
   return {
-    ...stats,
+    totalVotes: parseInt(stats.totalVotes),
+    totalUsers: parseInt(stats.totalUsers),
+    totalCategories: parseInt(stats.totalCategories),
+    totalNominees: parseInt(stats.totalNominees),
     recentVotes,
     topCategories,
   };
 }
 
 export async function getIpVoteCount(ipAddress: string): Promise<number> {
-  const [result] = await sql`
+  const [result] = await sql<{ count: string }[]>`
     SELECT COUNT(*) as count
     FROM votes
     WHERE ip_address = ${ipAddress}
