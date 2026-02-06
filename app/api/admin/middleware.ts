@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { sessions } from '../../auth/verify/route';
+import { sessions } from '../auth/verify/route';
 import { getUserById } from '@/lib/db';
 
 export async function requireAdmin(request: NextRequest) {
