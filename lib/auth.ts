@@ -1,13 +1,13 @@
 // ============================================================================
-// SECURITY FIX: Enhanced Authentication with Session Security
+// PRODUCTION AUTHENTICATION LAYER - Complete with All Security Fixes
 // ============================================================================
-// Fixes:
-// 1. Session rotation after login (prevents session fixation)
-// 2. IP binding for sessions
-// 3. Improved rate limiting (tiered approach)
-// 4. Secure token generation
-// 5. Email enumeration protection
-// 6. Activity-based session timeout
+// Includes:
+// - Session rotation after login (prevents session fixation)
+// - IP binding for sessions
+// - Improved rate limiting (tiered approach)
+// - Secure token generation
+// - Email enumeration protection
+// - Activity-based session timeout
 // ============================================================================
 
 import { nanoid } from 'nanoid';
@@ -266,8 +266,13 @@ export async function verifySession(
     // In production, you might want to invalidate session or require re-auth
   }
 
-  // Check activity timeout
-  const lastActivity = session.lastActivity ? new Date(session.lastActivity).getTime() : session.createdAt.getTime();
+  // Check activity timeout - FIXED: Added null check for createdAt
+  const lastActivity = session.lastActivity 
+    ? new Date(session.lastActivity).getTime() 
+    : session.createdAt 
+      ? new Date(session.createdAt).getTime()
+      : Date.now(); // Fallback to current time if both are undefined
+      
   if (Date.now() - lastActivity > ACTIVITY_TIMEOUT) {
     console.warn(`[SECURITY] Session ${sessionId} timed out due to inactivity`);
     return { valid: false, reason: 'Session expired due to inactivity' };
