@@ -384,3 +384,28 @@ setInterval(() => {
     }
   }
 }, 24 * 60 * 60 * 1000); // Daily cleanup
+
+// ============================================================================
+// DEBUG HELPERS
+// ============================================================================
+
+/**
+ * Debug function to check OTP status
+ * Useful for troubleshooting authentication issues
+ */
+export function debugOTPStatus(email: string): void {
+  const normalizedEmail = email.toLowerCase().trim();
+  const data = otpCodes.get(normalizedEmail);
+  
+  console.log('=== OTP DEBUG ===');
+  console.log('Email (normalized):', normalizedEmail);
+  console.log('OTP exists:', !!data);
+  if (data) {
+    console.log('Stored code:', data.code);
+    console.log('Expires at:', new Date(data.expiresAt).toISOString());
+    console.log('Is expired:', Date.now() > data.expiresAt);
+    console.log('Time remaining:', Math.round((data.expiresAt - Date.now()) / 1000), 'seconds');
+  }
+  console.log('All stored emails:', Array.from(otpCodes.keys()));
+  console.log('================');
+}
