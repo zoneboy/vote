@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import type { CategoryWithNominees } from '@/types';
 
 interface VotingCardProps {
@@ -11,8 +10,6 @@ interface VotingCardProps {
 }
 
 export function VotingCard({ category, onVote, selectedNominee, disabled }: VotingCardProps) {
-  const [expanded, setExpanded] = useState(false);
-
   const handleNomineeClick = (nomineeId: string) => {
     if (disabled) return;
     onVote(category.id, nomineeId);
@@ -26,11 +23,14 @@ export function VotingCard({ category, onVote, selectedNominee, disabled }: Voti
         {category.description && (
           <p className="text-sm text-gray-600 mt-1">{category.description}</p>
         )}
+        <p className="text-xs text-gray-500 mt-2">
+          {category.nominees.length} {category.nominees.length === 1 ? 'nominee' : 'nominees'}
+        </p>
       </div>
 
-      {/* Nominees */}
+      {/* All Nominees - No hiding, full transparency */}
       <div className="space-y-2">
-        {category.nominees.slice(0, expanded ? undefined : 3).map((nominee) => {
+        {category.nominees.map((nominee) => {
           const isSelected = selectedNominee === nominee.id;
           const isUserVote = category.userVote === nominee.id;
 
@@ -66,7 +66,7 @@ export function VotingCard({ category, onVote, selectedNominee, disabled }: Voti
                     <p className="text-sm text-gray-600 mt-1">{nominee.description}</p>
                   )}
                 </div>
-                <div className="ml-3">
+                <div className="ml-3 flex-shrink-0">
                   <div
                     className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                       isSelected || isUserVote
@@ -93,15 +93,7 @@ export function VotingCard({ category, onVote, selectedNominee, disabled }: Voti
         })}
       </div>
 
-      {/* Show More/Less Button */}
-      {category.nominees.length > 3 && (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="mt-3 text-purple-600 hover:text-purple-700 text-sm font-medium"
-        >
-          {expanded ? '← Show Less' : `Show ${category.nominees.length - 3} More →`}
-        </button>
-      )}
+      {/* No "Show More" button - all nominees visible for transparency */}
     </div>
   );
 }
