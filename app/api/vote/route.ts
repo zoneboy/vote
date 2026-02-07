@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { castVote, getNomineeById, getCategoryById, getIpVoteCount, getSettings, getSession } from '@/lib/db';
+import { castVote, getNomineeById, getCategoryById, getIpVoteCount, getSettings, getSession, getUserVotes } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 
@@ -62,6 +62,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if user has already voted (votes are final)
+    const existingVotes = await getUserVotes(session.userId);
+    if (existingVotes.length > 0) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'You have already submitted your votes. Votes are final and cannot be changed.',
+          alreadyVoted: true
+        },
+        { status: 403 }
+      );
+    }
+
     // Get IP address for fraud detection
     const ipAddress = getClientIp(request);
     const userAgent = getUserAgent(request);
@@ -100,7 +113,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Cast vote (will update if already voted in this category)
+      // Cast vote (insert only, no updates)
       const result = await castVote({
         userId: session.userId,
         categoryId,
@@ -112,9 +125,19 @@ export async function POST(request: NextRequest) {
       results.push(result);
     }
 
+    // Send confirmation email
+    const { sendVoteConfirmation } = await import('@/lib/email');
+    try {
+      await sendVoteConfirmation(session.email, results.length);
+      console.log('[Vote] Confirmation email sent to:', session.email);
+    } catch (emailError) {
+      console.error('[Vote] Failed to send confirmation email:', emailError);
+      // Don't fail the vote if email fails
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Successfully voted in ${results.length} ${results.length === 1 ? 'category' : 'categories'}`,
+      message: `Successfully voted in ${results.length} ${results.length === 1 ? 'category' : 'categories'}. A confirmation email has been sent.`,
       data: results,
     });
   } catch (error) {
