@@ -390,4 +390,39 @@ export async function getIpVoteCount(ipAddress: string): Promise<number> {
   return parseInt(result.count);
 }
 
+// Session operations
+export async function createSession(data: {
+  id: string;
+  userId: string;
+  email: string;
+  expiresAt: Date;
+}) {
+  await sql`
+    INSERT INTO sessions (id, user_id, email, expires_at)
+    VALUES (${data.id}, ${data.userId}, ${data.email}, ${data.expiresAt})
+  `;
+}
+
+export async function getSession(sessionId: string) {
+  const [session] = await sql<Array<{
+    id: string;
+    userId: string;
+    email: string;
+    expiresAt: Date;
+  }>>`
+    SELECT id, user_id as "userId", email, expires_at as "expiresAt"
+    FROM sessions
+    WHERE id = ${sessionId} AND expires_at > NOW()
+  `;
+  return session || null;
+}
+
+export async function deleteSession(sessionId: string) {
+  await sql`DELETE FROM sessions WHERE id = ${sessionId}`;
+}
+
+export async function cleanupExpiredSessions() {
+  await sql`DELETE FROM sessions WHERE expires_at < NOW()`;
+}
+
 export default sql;

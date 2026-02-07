@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { sessions } from '../auth/verify/route';
+import { getSession } from '@/lib/db';
 import { getUserById } from '@/lib/db';
 
 export async function requireAdmin(request: NextRequest) {
@@ -14,8 +14,10 @@ export async function requireAdmin(request: NextRequest) {
     );
   }
 
-  const session = sessions.get(sessionId);
-  if (!session || Date.now() > session.expiresAt) {
+  // Get session from database
+  const session = await getSession(sessionId);
+  
+  if (!session) {
     return NextResponse.json(
       { success: false, error: 'Session expired' },
       { status: 401 }

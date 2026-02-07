@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyMagicToken, verifyOTP, authenticateUser, debugOTPStatus } from '@/lib/auth';
+import { createSession, getSession, deleteSession } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { nanoid } from 'nanoid';
-
-// Session storage (use Redis in production)
-export const sessions = new Map<string, { userId: string; email: string; expiresAt: number }>();
 
 const SESSION_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -100,30 +98,38 @@ export async function POST(request: NextRequest) {
     const user = await authenticateUser(verifiedEmail);
     console.log('[Verify] User authenticated:', user.id, user.email);
 
-    // Create session
+    // Create session in database
     const sessionId = nanoid(32);
-    sessions.set(sessionId, {
+    const expiresAt = new Date(Date.now() + SESSION_EXPIRY);
+    
+    await createSession({
+      id: sessionId,
       userId: user.id,
       email: user.email,
-      expiresAt: Date.now() + SESSION_EXPIRY,
+      expiresAt,
     });
-    console.log('[Verify] Session created:', sessionId);
+    
+    console.log('[Verify] Session created in database:', sessionId);
+    console.log('[Verify] Session expires at:', expiresAt.toISOString());
 
     // Set cookie
     const cookieStore = await cookies();
+    const url = new URL(request.url);
+    const isProduction = url.hostname !== 'localhost';
+    
     cookieStore.set('session', sessionId, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction,
       sameSite: 'lax',
       maxAge: SESSION_EXPIRY / 1000,
       path: '/',
     });
+    
     console.log('[Verify] Cookie set');
-
     console.log('[Verify] Success! User:', user.email, 'Admin:', user.isAdmin);
 
-    // Return user info including admin status
-    return NextResponse.json({
+    // Return user info
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -131,6 +137,17 @@ export async function POST(request: NextRequest) {
         isAdmin: user.isAdmin,
       },
     });
+
+    // Also set cookie on response
+    response.cookies.set('session', sessionId, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: SESSION_EXPIRY / 1000,
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('[Verify] Unexpected error:', error);
     return NextResponse.json(
@@ -149,7 +166,7 @@ export async function GET(request: NextRequest) {
     const cookieStore = await cookies();
     const sessionId = cookieStore.get('session')?.value;
 
-    console.log('[Verify GET] Checking session:', sessionId ? 'exists' : 'missing');
+    console.log('[Verify GET] Checking session:', sessionId ? sessionId.substring(0, 8) + '...' : 'missing');
 
     if (!sessionId) {
       return NextResponse.json(
@@ -158,10 +175,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const session = sessions.get(sessionId);
-    if (!session || Date.now() > session.expiresAt) {
-      sessions.delete(sessionId);
-      console.log('[Verify GET] Session expired or invalid');
+    // Get session from database
+    const session = await getSession(sessionId);
+    
+    if (!session) {
+      console.log('[Verify GET] Session not found or expired');
       return NextResponse.json(
         { success: false, error: 'Session expired' },
         { status: 401 }
@@ -169,6 +187,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('[Verify GET] Valid session for:', session.email);
+    console.log('[Verify GET] Session expires at:', session.expiresAt.toISOString());
 
     return NextResponse.json({
       success: true,
