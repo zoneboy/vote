@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import '@/styles/globals.css';
 
 export const metadata: Metadata = {
-  title: 'Awards 2025 - Voting Platform',
+  title: 'RAN Awards 2026 - Voting Platform',
   description: 'Cast your votes for the best of the year',
 };
 

@@ -10,7 +10,7 @@ export default function HomePage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center animate-fade-in">
             <h1 className="text-6xl md:text-7xl font-bold mb-6">
-              <span className="text-gradient">Awards 2025</span>
+              <span className="text-gradient">RAN Awards 2026</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-700 mb-8 max-w-3xl mx-auto">
               Your voice matters. Vote for your favorites and help decide the winners of this year's most prestigious awards.
@@ -129,10 +129,10 @@ export default function HomePage() {
       <footer className="bg-gray-900 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-gray-400">
-            © 2025 Awards Voting Platform. All rights reserved.
+            © 2026 RAN Awards Voting Platform. All rights reserved.
           </p>
           <div className="mt-4 flex justify-center gap-4 text-sm">
-            <Link href="/admin" className="text-gray-400 hover:text-white">
+            <Link href="#" className="text-gray-400 hover:text-white">
               Admin
             </Link>
             <span className="text-gray-600">|</span>

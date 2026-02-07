@@ -139,7 +139,7 @@ export default function VotePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gradient">Awards 2025</h1>
+              <h1 className="text-3xl font-bold text-gradient">RAN Awards 2026</h1>
               <p className="text-gray-600 text-sm mt-1">Cast your votes for the best of the year</p>
             </div>
             <div className="text-sm text-gray-600">
