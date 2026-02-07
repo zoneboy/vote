@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllCategories, getNomineesByCategory, getUserVotes, getSession } from '@/lib/db';
 import { cookies } from 'next/headers';
-
+import { sessions } from '../auth/verify/route';
 // Mark this route as dynamic
 export const dynamic = 'force-dynamic';
 
