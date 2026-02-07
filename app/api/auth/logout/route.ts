@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { sessions } from '../verify/route';
+import { deleteSession } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,9 +8,11 @@ export async function POST(request: NextRequest) {
     const sessionId = cookieStore.get('session')?.value;
 
     if (sessionId) {
-      sessions.delete(sessionId);
+      // Delete session from database
+      await deleteSession(sessionId);
     }
 
+    // Delete cookie
     cookieStore.delete('session');
 
     return NextResponse.json({

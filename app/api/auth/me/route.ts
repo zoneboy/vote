@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { sessions } from '../verify/route';
-import { getUserById } from '@/lib/db';
+import { getSession, getUserById } from '@/lib/db';
 
 // Mark route as dynamic
 export const dynamic = 'force-dynamic';
@@ -18,9 +17,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const session = sessions.get(sessionId);
-    if (!session || Date.now() > session.expiresAt) {
-      sessions.delete(sessionId);
+    // Get session from database
+    const session = await getSession(sessionId);
+    
+    if (!session) {
       return NextResponse.json(
         { success: false, error: 'Session expired' },
         { status: 401 }

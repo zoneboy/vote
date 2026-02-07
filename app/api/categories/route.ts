@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllCategories, getNomineesByCategory, getUserVotes } from '@/lib/db';
+import { getAllCategories, getNomineesByCategory, getUserVotes, getSession } from '@/lib/db';
 import { cookies } from 'next/headers';
-import { sessions } from '../auth/verify/route';
 
 // Mark this route as dynamic
 export const dynamic = 'force-dynamic';
@@ -17,8 +16,8 @@ export async function GET(request: NextRequest) {
     let userId: string | null = null;
 
     if (sessionId) {
-      const session = sessions.get(sessionId);
-      if (session && Date.now() <= session.expiresAt) {
+      const session = await getSession(sessionId);
+      if (session) {
         userId = session.userId;
       }
     }

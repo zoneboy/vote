@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { castVote, getNomineeById, getCategoryById, getIpVoteCount, getSettings } from '@/lib/db';
+import { castVote, getNomineeById, getCategoryById, getIpVoteCount, getSettings, getSession } from '@/lib/db';
 import { cookies } from 'next/headers';
-import { sessions } from '../auth/verify/route';
 import { getClientIp, getUserAgent } from '@/lib/auth';
 
 // Mark route as dynamic
@@ -20,8 +19,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = sessions.get(sessionId);
-    if (!session || Date.now() > session.expiresAt) {
+    // Get session from database
+    const session = await getSession(sessionId);
+    
+    if (!session) {
       return NextResponse.json(
         { success: false, error: 'Session expired. Please sign in again.' },
         { status: 401 }
