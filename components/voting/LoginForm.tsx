@@ -26,13 +26,17 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     try {
       const result = await fetcher('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, method: 'otp' }),
+        body: JSON.stringify({ 
+          email: email.toLowerCase().trim(), 
+          method: 'otp' 
+        }),
       });
 
       setMessage(result.message);
       setStep('otp');
     } catch (err: any) {
-      setError(err.message || 'Failed to send code');
+      console.error('Login error:', err);
+      setError(err.message || 'Failed to send code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -44,10 +48,17 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setLoading(true);
 
     try {
+      console.log('Verifying OTP:', { email: email.toLowerCase().trim(), otp: otp.trim() });
+      
       const result = await fetcher('/api/auth/verify', {
         method: 'POST',
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify({ 
+          email: email.toLowerCase().trim(), 
+          otp: otp.trim() 
+        }),
       });
+
+      console.log('Verification result:', result);
 
       if (result.success) {
         // Check if user is admin and redirect accordingly
@@ -60,10 +71,33 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Invalid code');
+      console.error('Verification error:', err);
+      
+      // Show more specific error messages
+      let errorMessage = 'Invalid code. Please try again.';
+      
+      if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Add helpful hints based on error
+      if (err.message?.includes('expired')) {
+        errorMessage += ' The code has expired. Please request a new one.';
+      } else if (err.message?.includes('Invalid')) {
+        errorMessage += ' Make sure you entered the 6-digit code correctly.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResendCode = async () => {
+    setOtp('');
+    setError('');
+    setMessage('');
+    await handleRequestCode(new Event('submit') as any);
   };
 
   return (
@@ -91,6 +125,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                   className="input"
                   required
                   disabled={loading}
+                  autoFocus
                 />
               </div>
 
@@ -111,7 +146,14 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 disabled={loading}
                 className="btn btn-primary w-full text-lg py-3"
               >
-                {loading ? 'Sending...' : 'Send Verification Code'}
+                {loading ? (
+                  <>
+                    <div className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Sending...
+                  </>
+                ) : (
+                  'Send Verification Code'
+                )}
               </button>
 
               <p className="text-xs text-gray-500 text-center mt-4">
@@ -142,8 +184,14 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
-                  {error}
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              {message && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
+                  {message}
                 </div>
               )}
 
@@ -152,17 +200,43 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
                 disabled={loading || otp.length !== 6}
                 className="btn btn-primary w-full text-lg py-3"
               >
-                {loading ? 'Verifying...' : 'Verify & Sign In'}
+                {loading ? (
+                  <>
+                    <div className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Verifying...
+                  </>
+                ) : (
+                  'Verify & Sign In'
+                )}
               </button>
 
-              <button
-                type="button"
-                onClick={() => setStep('email')}
-                className="btn btn-secondary w-full"
-                disabled={loading}
-              >
-                Use Different Email
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  className="btn btn-secondary flex-1"
+                  disabled={loading}
+                >
+                  Resend Code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('email');
+                    setOtp('');
+                    setError('');
+                    setMessage('');
+                  }}
+                  className="btn btn-secondary flex-1"
+                  disabled={loading}
+                >
+                  Change Email
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-500 text-center mt-4">
+                Code expires in 15 minutes
+              </p>
             </form>
           )}
         </div>

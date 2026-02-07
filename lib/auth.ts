@@ -32,10 +32,16 @@ export function generateMagicToken(email: string): string {
 
 export function generateOTP(email: string): string {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  otpCodes.set(email, {
+  
+  // Store OTP with normalized email (lowercase, trimmed)
+  const normalizedEmail = email.toLowerCase().trim();
+  
+  otpCodes.set(normalizedEmail, {
     code: otp,
     expiresAt: Date.now() + TOKEN_EXPIRY,
   });
+
+  console.log(`[OTP Generated] Email: ${normalizedEmail}, Code: ${otp}, Expires: ${new Date(Date.now() + TOKEN_EXPIRY).toISOString()}`);
 
   // Clean up expired OTPs
   cleanupExpiredOTPs();
@@ -47,37 +53,53 @@ export function verifyMagicToken(token: string): { valid: boolean; email?: strin
   const data = tokens.get(token);
 
   if (!data) {
+    console.log('[Magic Token] Not found:', token);
     return { valid: false };
   }
 
   if (Date.now() > data.expiresAt) {
     tokens.delete(token);
+    console.log('[Magic Token] Expired:', token);
     return { valid: false };
   }
 
   // Token is valid, delete it (one-time use)
   tokens.delete(token);
+  console.log('[Magic Token] Valid:', token, 'Email:', data.email);
   return { valid: true, email: data.email };
 }
 
 export function verifyOTP(email: string, code: string): boolean {
-  const data = otpCodes.get(email);
+  // Normalize email and code
+  const normalizedEmail = email.toLowerCase().trim();
+  const normalizedCode = code.trim();
+  
+  console.log(`[OTP Verify] Attempting - Email: ${normalizedEmail}, Code: ${normalizedCode}`);
+  
+  const data = otpCodes.get(normalizedEmail);
 
   if (!data) {
+    console.log('[OTP Verify] No OTP found for email:', normalizedEmail);
+    console.log('[OTP Verify] Available emails:', Array.from(otpCodes.keys()));
     return false;
   }
+
+  console.log(`[OTP Verify] Found OTP - Stored: ${data.code}, Provided: ${normalizedCode}, Expires: ${new Date(data.expiresAt).toISOString()}`);
 
   if (Date.now() > data.expiresAt) {
-    otpCodes.delete(email);
+    otpCodes.delete(normalizedEmail);
+    console.log('[OTP Verify] Expired for email:', normalizedEmail);
     return false;
   }
 
-  if (data.code !== code) {
+  if (data.code !== normalizedCode) {
+    console.log('[OTP Verify] Code mismatch - Expected:', data.code, 'Got:', normalizedCode);
     return false;
   }
 
   // OTP is valid, delete it (one-time use)
-  otpCodes.delete(email);
+  otpCodes.delete(normalizedEmail);
+  console.log('[OTP Verify] Success for email:', normalizedEmail);
   return true;
 }
 
@@ -87,11 +109,12 @@ export function checkRateLimit(email: string): {
   resetAt?: number;
 } {
   const now = Date.now();
-  const limit = rateLimits.get(email);
+  const normalizedEmail = email.toLowerCase().trim();
+  const limit = rateLimits.get(normalizedEmail);
 
   if (!limit || now > limit.resetAt) {
     // First attempt or window expired
-    rateLimits.set(email, {
+    rateLimits.set(normalizedEmail, {
       count: 1,
       resetAt: now + RATE_LIMIT_WINDOW,
     });
@@ -139,10 +162,13 @@ export function isValidEmail(email: string): boolean {
 }
 
 export async function authenticateUser(email: string) {
-  let user = await getUserByEmail(email);
+  // Normalize email
+  const normalizedEmail = email.toLowerCase().trim();
+  
+  let user = await getUserByEmail(normalizedEmail);
 
   if (!user) {
-    user = await createUser(email);
+    user = await createUser(normalizedEmail);
   }
 
   return user;
@@ -170,10 +196,28 @@ export function getUserAgent(request: Request): string {
 // Clean admin emails from environment
 export function getAdminEmails(): string[] {
   const emails = process.env.ADMIN_EMAILS || '';
-  return emails.split(',').map(e => e.trim()).filter(Boolean);
+  return emails.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 }
 
 export function isAdminEmail(email: string): boolean {
   const adminEmails = getAdminEmails();
-  return adminEmails.includes(email.toLowerCase());
+  return adminEmails.includes(email.toLowerCase().trim());
+}
+
+// Debug function to check OTP status
+export function debugOTPStatus(email: string): void {
+  const normalizedEmail = email.toLowerCase().trim();
+  const data = otpCodes.get(normalizedEmail);
+  
+  console.log('=== OTP DEBUG ===');
+  console.log('Email (normalized):', normalizedEmail);
+  console.log('OTP exists:', !!data);
+  if (data) {
+    console.log('Stored code:', data.code);
+    console.log('Expires at:', new Date(data.expiresAt).toISOString());
+    console.log('Is expired:', Date.now() > data.expiresAt);
+    console.log('Time remaining:', Math.round((data.expiresAt - Date.now()) / 1000), 'seconds');
+  }
+  console.log('All stored emails:', Array.from(otpCodes.keys()));
+  console.log('================');
 }
