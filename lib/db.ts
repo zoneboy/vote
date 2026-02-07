@@ -51,9 +51,6 @@ const sql = postgres(connectionString, {
     application_name: `voting-${isProduction ? 'prod' : 'dev'}`,
   },
   
-  // Prevent hanging queries (30 second timeout)
-  statement_timeout: 30000,
-  
   // Transform snake_case to camelCase automatically
   transform: postgres.camel,
   
