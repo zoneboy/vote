@@ -24,18 +24,22 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setLoading(true);
 
     try {
+      const normalizedEmail = email.toLowerCase().trim();
+      console.log('[LoginForm] Requesting OTP for:', normalizedEmail);
+      
       const result = await fetcher('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ 
-          email: email.toLowerCase().trim(), 
+          email: normalizedEmail, 
           method: 'otp' 
         }),
       });
 
+      console.log('[LoginForm] OTP request result:', result);
       setMessage(result.message);
       setStep('otp');
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('[LoginForm] Login error:', err);
       setError(err.message || 'Failed to send code. Please try again.');
     } finally {
       setLoading(false);
@@ -48,30 +52,43 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     setLoading(true);
 
     try {
-      console.log('Verifying OTP:', { email: email.toLowerCase().trim(), otp: otp.trim() });
+      const normalizedEmail = email.toLowerCase().trim();
+      const normalizedOtp = otp.trim();
+      
+      console.log('[LoginForm] Verifying OTP:', { email: normalizedEmail, otp: normalizedOtp });
       
       const result = await fetcher('/api/auth/verify', {
         method: 'POST',
         body: JSON.stringify({ 
-          email: email.toLowerCase().trim(), 
-          otp: otp.trim() 
+          email: normalizedEmail, 
+          otp: normalizedOtp 
         }),
       });
 
-      console.log('Verification result:', result);
+      console.log('[LoginForm] Verification result:', result);
 
       if (result.success) {
+        console.log('[LoginForm] Verification successful, user:', result.user);
+        
+        // Small delay to ensure session is set
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Check if user is admin and redirect accordingly
         if (result.user?.isAdmin) {
-          router.push('/admin/dashboard');
+          console.log('[LoginForm] Redirecting to admin dashboard');
+          window.location.href = '/admin/dashboard';
         } else if (onSuccess) {
+          console.log('[LoginForm] Calling onSuccess callback');
           onSuccess();
         } else {
-          router.push('/vote');
+          console.log('[LoginForm] Redirecting to vote page');
+          window.location.href = '/vote';
         }
+      } else {
+        setError(result.error || 'Verification failed');
       }
     } catch (err: any) {
-      console.error('Verification error:', err);
+      console.error('[LoginForm] Verification error:', err);
       
       // Show more specific error messages
       let errorMessage = 'Invalid code. Please try again.';
