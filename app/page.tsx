@@ -13,7 +13,7 @@ export default function HomePage() {
               <span className="text-gradient">RAN Awards 2026</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-700 mb-8 max-w-3xl mx-auto">
-              Your voice matters. Vote for your favorites and help decide the winners of this year's most prestigious awards.
+              Your voice matters. Vote for the organisation making a real impact in recycling and circular economy! Choose based on their contributions and responsibilities in driving Nigeria's recycling value chain forward.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
