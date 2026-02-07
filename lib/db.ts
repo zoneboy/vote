@@ -1,21 +1,109 @@
 // ============================================================================
-// COMPLETE DATABASE LAYER - Production Ready with Security Fixes
+// PRODUCTION DATABASE LAYER - Complete with All Security Fixes
 // ============================================================================
 // Includes:
+// - Serverless-optimized connection pooling (CRITICAL for Netlify/Vercel)
+// - Vote manipulation prevention (SECURITY FIX)
+// - Session management with IP binding (SECURITY FIX)
 // - All original database functions
-// - Security fix for vote manipulation (castVote)
-// - Session management with IP binding
-// - Audit logging support
 // ============================================================================
 
 import postgres from 'postgres';
 import type { Category, Nominee, Vote, User, Settings } from '@/types';
 
-const sql = postgres(process.env.DATABASE_URL!, {
-  max: 10,
-  idle_timeout: 20,
-  connect_timeout: 10,
+// ============================================================================
+// SERVERLESS-OPTIMIZED DATABASE CONNECTION
+// ============================================================================
+
+// Environment detection
+const isProduction = process.env.NODE_ENV === 'production';
+const isServerless = !!(process.env.NETLIFY || process.env.VERCEL);
+
+// Connection string selection
+// Priority: POOLER_URL (serverless) > DATABASE_URL (direct)
+const connectionString = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL!;
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL or DATABASE_POOLER_URL must be set');
+}
+
+// Log connection info (non-sensitive)
+console.log('[DB] Initializing:', {
+  type: process.env.DATABASE_POOLER_URL ? 'POOLED' : 'DIRECT',
+  env: isProduction ? 'production' : 'development',
+  serverless: isServerless,
 });
+
+// Serverless-optimized PostgreSQL connection
+const sql = postgres(connectionString, {
+  // CRITICAL: In serverless, use 1 connection per instance
+  // External pooler (Neon/PgBouncer) handles the actual pooling
+  // In traditional server, use larger pool
+  max: isServerless ? 1 : 10,
+  
+  // Aggressive timeouts for serverless (fail fast)
+  idle_timeout: isServerless ? 10 : 30,      // Close idle connections quickly
+  connect_timeout: 10,                        // Fail fast on connection issues
+  max_lifetime: isServerless ? 60 * 10 : 60 * 60,  // Recycle connections
+  
+  // Better application identification
+  connection: {
+    application_name: `voting-${isProduction ? 'prod' : 'dev'}`,
+  },
+  
+  // Prevent hanging queries (30 second timeout)
+  statement_timeout: 30000,
+  
+  // Transform snake_case to camelCase automatically
+  transform: postgres.camel,
+  
+  // Debug mode (only in development with explicit flag)
+  debug: !isProduction && process.env.DEBUG_SQL === 'true',
+});
+
+// ============================================================================
+// HEALTH CHECK & MONITORING
+// ============================================================================
+
+/**
+ * Check database connectivity
+ * Use in health check endpoints
+ */
+export async function checkDatabaseHealth(): Promise<boolean> {
+  try {
+    await sql`SELECT 1 as health_check`;
+    return true;
+  } catch (error) {
+    console.error('[DB] Health check failed:', error);
+    return false;
+  }
+}
+
+/**
+ * Get connection pool statistics
+ * Useful for monitoring and debugging
+ */
+export function getPoolStats() {
+  return {
+    maxConnections: isServerless ? 1 : 10,
+    environment: isProduction ? 'production' : 'development',
+    isPooled: !!process.env.DATABASE_POOLER_URL,
+    isServerless,
+    connectionType: process.env.DATABASE_POOLER_URL ? 'pooled' : 'direct',
+  };
+}
+
+// Graceful shutdown (development only)
+if (!isProduction) {
+  const cleanup = async () => {
+    console.log('[DB] Closing connections...');
+    await sql.end({ timeout: 5 });
+    process.exit(0);
+  };
+  
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+}
 
 // ============================================================================
 // USER OPERATIONS
