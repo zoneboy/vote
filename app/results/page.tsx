@@ -10,6 +10,7 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [resultsPublic, setResultsPublic] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     loadResults();
@@ -22,6 +23,7 @@ export default function ResultsPage() {
       if (response.success) {
         setResults(response.data);
         setResultsPublic(true);
+        setIsAdmin(response.isAdmin || false);
       } else {
         setResultsPublic(false);
         setError(response.error || 'Results are not public yet');
@@ -80,6 +82,11 @@ export default function ResultsPage() {
             <div>
               <h1 className="text-3xl font-bold text-gradient">Voting Results</h1>
               <p className="text-gray-600 text-sm mt-1">See how everyone voted</p>
+              {isAdmin && (
+                <p className="text-xs text-purple-600 mt-1 font-medium">
+                  🔒 Admin Preview Mode
+                </p>
+              )}
             </div>
             <Link href="/vote" className="btn btn-primary">
               Cast Your Vote
@@ -87,6 +94,25 @@ export default function ResultsPage() {
           </div>
         </div>
       </header>
+
+      {/* Admin Notice */}
+      {isAdmin && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 text-purple-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <p className="font-semibold text-purple-900">Admin Access</p>
+                <p className="text-sm text-purple-800 mt-1">
+                  You're viewing these results as an admin. Regular users cannot see results until they are made public in the voting settings.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Results */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

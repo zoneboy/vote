@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllResults, getSettings } from '@/lib/db';
+import { getAllResults, getSettings, getSession, getUserById } from '@/lib/db';
+import { cookies } from 'next/headers';
 import type { VoteResult } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +10,21 @@ export async function GET(request: NextRequest) {
     // Check if results are public
     const settings = await getSettings();
     
-    if (!settings.resultsPublic) {
+    // Check if user is admin
+    let isAdmin = false;
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get('session')?.value;
+    
+    if (sessionId) {
+      const session = await getSession(sessionId);
+      if (session) {
+        const user = await getUserById(session.userId);
+        isAdmin = user?.isAdmin || false;
+      }
+    }
+    
+    // Allow access if results are public OR user is admin
+    if (!settings.resultsPublic && !isAdmin) {
       return NextResponse.json(
         { 
           success: false, 
@@ -64,6 +79,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: results,
+      isAdmin, // Include admin status in response
     });
   } catch (error) {
     console.error('Get results error:', error);
