@@ -1,20 +1,14 @@
-// lib/email.ts
-// REPLACE YOUR CURRENT lib/email.ts WITH THIS FILE
-// Uses SendGrid via SMTP (no additional npm packages needed!)
-
 import nodemailer from 'nodemailer';
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Awards Voting';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-// SendGrid SMTP configuration
+// Create transporter using Gmail
 const transporter = nodemailer.createTransport({
-  host: 'smtp.sendgrid.net',
-  port: 587,
-  secure: false, // Use TLS
+  service: 'gmail',
   auth: {
-    user: 'apikey', // This is literal string "apikey", not your email
-    pass: process.env.SENDGRID_API_KEY, // Your actual SendGrid API key
+    user: process.env.GMAIL_USER, 
+    pass: process.env.GMAIL_APP_PASSWORD, 
   },
 });
 
@@ -23,7 +17,7 @@ export async function sendMagicLink(email: string, token: string) {
 
   try {
     await transporter.sendMail({
-      from: `"${APP_NAME}" <${process.env.SENDGRID_FROM_EMAIL}>`,
+      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: `Sign in to ${APP_NAME}`,
       html: getMagicLinkEmailHTML(magicLink),
@@ -39,7 +33,7 @@ export async function sendMagicLink(email: string, token: string) {
 export async function sendOTP(email: string, otp: string) {
   try {
     await transporter.sendMail({
-      from: `"${APP_NAME}" <${process.env.SENDGRID_FROM_EMAIL}>`,
+      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: `Your ${APP_NAME} verification code`,
       html: getOTPEmailHTML(otp),
@@ -55,7 +49,7 @@ export async function sendOTP(email: string, otp: string) {
 export async function sendVoteConfirmation(email: string, votes: number) {
   try {
     await transporter.sendMail({
-      from: `"${APP_NAME}" <${process.env.SENDGRID_FROM_EMAIL}>`,
+      from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: `Vote confirmation - ${APP_NAME}`,
       html: getVoteConfirmationHTML(votes),
