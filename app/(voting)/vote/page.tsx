@@ -21,21 +21,18 @@ export default function VotePage() {
     checkAuth();
   }, []);
 
+  // UPDATED: Allow both regular users AND admins to load categories and stay on the page
   useEffect(() => {
-    if (isAuthenticated && !isAdmin) {
+    if (isAuthenticated) {
       loadCategories();
-    } else if (isAuthenticated && isAdmin) {
-      // Redirect admin to dashboard
-      router.push('/admin/dashboard');
     }
-  }, [isAuthenticated, isAdmin, router]);
+  }, [isAuthenticated]);
 
   const checkAuth = async () => {
     try {
       const result = await fetcher('/api/auth/verify');
       setIsAuthenticated(result.success);
       
-      // Check if user is admin by fetching user info
       if (result.success) {
         const userResult = await fetcher('/api/auth/me');
         setIsAdmin(userResult.user?.isAdmin || false);
@@ -53,7 +50,6 @@ export default function VotePage() {
       const result = await fetcher('/api/categories');
       setCategories(result.data);
 
-      // Pre-fill existing votes
       const votes: Record<string, string> = {};
       result.data.forEach((cat: CategoryWithNominees) => {
         if (cat.userVote) {
@@ -120,30 +116,35 @@ export default function VotePage() {
     );
   }
 
-  // If admin, component will redirect in useEffect
-  if (isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-pattern">
-        <div className="text-center">
-          <div className="inline-block w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-gray-600">Redirecting to admin dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  // UPDATED: Removed the "If admin, redirect" block that was previously here.
 
   return (
     <div className="min-h-screen bg-pattern">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gradient">RAN Awards 2026</h1>
               <p className="text-gray-600 text-sm mt-1">Cast your votes for the best of the year</p>
+              {isAdmin && (
+                <span className="inline-block mt-2 px-2 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded-md">
+                  Admin Voting Enabled (100x Weight)
+                </span>
+              )}
             </div>
-            <div className="text-sm text-gray-600">
-              {Object.keys(selectedVotes).length} of {categories.length} voted
+            <div className="flex items-center gap-6">
+              <div className="text-sm font-medium text-gray-600 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-200">
+                {Object.keys(selectedVotes).length} of {categories.length} voted
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={() => router.push('/admin/dashboard')}
+                  className="text-sm font-semibold text-purple-600 hover:text-purple-800 transition-colors"
+                >
+                  Dashboard →
+                </button>
+              )}
             </div>
           </div>
         </div>
