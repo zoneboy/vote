@@ -1,11 +1,5 @@
 // ============================================================================
-// PRODUCTION DATABASE LAYER - Complete with All Security Fixes
-// ============================================================================
-// Includes:
-// - Serverless-optimized connection pooling (CRITICAL for Netlify/Vercel)
-// - Vote manipulation prevention (SECURITY FIX)
-// - Session management with IP binding (SECURITY FIX)
-// - All original database functions
+// PRODUCTION DATABASE LAYER - Complete with All Security Fixes & Admin Weighting
 // ============================================================================
 
 import postgres from 'postgres';
@@ -15,46 +9,30 @@ import type { Category, Nominee, Vote, User, Settings } from '@/types';
 // SERVERLESS-OPTIMIZED DATABASE CONNECTION
 // ============================================================================
 
-// Environment detection
 const isProduction = process.env.NODE_ENV === 'production';
 const isServerless = !!(process.env.NETLIFY || process.env.VERCEL);
 
-// Connection string selection
-// Priority: POOLER_URL (serverless) > DATABASE_URL (direct)
 const connectionString = process.env.DATABASE_POOLER_URL || process.env.DATABASE_URL!;
 
 if (!connectionString) {
   throw new Error('DATABASE_URL or DATABASE_POOLER_URL must be set');
 }
 
-// Log connection info (non-sensitive)
 console.log('[DB] Initializing:', {
   type: process.env.DATABASE_POOLER_URL ? 'POOLED' : 'DIRECT',
   env: isProduction ? 'production' : 'development',
   serverless: isServerless,
 });
 
-// Serverless-optimized PostgreSQL connection
 const sql = postgres(connectionString, {
-  // CRITICAL: In serverless, use 1 connection per instance
-  // External pooler (Neon/PgBouncer) handles the actual pooling
-  // In traditional server, use larger pool
   max: isServerless ? 1 : 10,
-  
-  // Aggressive timeouts for serverless (fail fast)
-  idle_timeout: isServerless ? 10 : 30,      // Close idle connections quickly
-  connect_timeout: 10,                        // Fail fast on connection issues
-  max_lifetime: isServerless ? 60 * 10 : 60 * 60,  // Recycle connections
-  
-  // Better application identification
+  idle_timeout: isServerless ? 10 : 30,      
+  connect_timeout: 10,                        
+  max_lifetime: isServerless ? 60 * 10 : 60 * 60,  
   connection: {
     application_name: `voting-${isProduction ? 'prod' : 'dev'}`,
   },
-  
-  // Transform snake_case to camelCase automatically
   transform: postgres.camel,
-  
-  // Debug mode (only in development with explicit flag)
   debug: !isProduction && process.env.DEBUG_SQL === 'true',
 });
 
@@ -62,10 +40,6 @@ const sql = postgres(connectionString, {
 // HEALTH CHECK & MONITORING
 // ============================================================================
 
-/**
- * Check database connectivity
- * Use in health check endpoints
- */
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
     await sql`SELECT 1 as health_check`;
@@ -76,10 +50,6 @@ export async function checkDatabaseHealth(): Promise<boolean> {
   }
 }
 
-/**
- * Get connection pool statistics
- * Useful for monitoring and debugging
- */
 export function getPoolStats() {
   return {
     maxConnections: isServerless ? 1 : 10,
@@ -90,7 +60,6 @@ export function getPoolStats() {
   };
 }
 
-// Graceful shutdown (development only)
 if (!isProduction) {
   const cleanup = async () => {
     console.log('[DB] Closing connections...');
@@ -282,14 +251,9 @@ export async function deleteNominee(id: string): Promise<boolean> {
 }
 
 // ============================================================================
-// VOTE OPERATIONS (WITH SECURITY FIX)
+// VOTE OPERATIONS
 // ============================================================================
 
-/**
- * SECURITY FIX: Cast a vote - FINAL and IMMUTABLE
- * Prevents vote manipulation by rejecting duplicate votes
- * @throws Error if user has already voted in this category
- */
 export async function castVote(data: {
   userId: string;
   categoryId: string;
@@ -297,14 +261,11 @@ export async function castVote(data: {
   ipAddress?: string;
   userAgent?: string;
 }): Promise<Vote> {
-  // SECURITY: Check if already voted BEFORE attempting insert
   const existing = await hasUserVotedInCategory(data.userId, data.categoryId);
   if (existing) {
     throw new Error('You have already voted in this category. Votes are final and cannot be changed.');
   }
 
-  // SECURITY: Use INSERT-only with NO UPDATE clause
-  // This prevents any vote manipulation even if check is bypassed
   try {
     const [vote] = await sql<Vote[]>`
       INSERT INTO votes (user_id, category_id, nominee_id, ip_address, user_agent)
@@ -317,8 +278,7 @@ export async function castVote(data: {
     
     return vote as Vote;
   } catch (error: any) {
-    // Catch unique constraint violation
-    if (error.code === '23505') { // PostgreSQL unique violation
+    if (error.code === '23505') { 
       throw new Error('Vote already recorded for this category');
     }
     throw error;
@@ -351,20 +311,22 @@ export async function hasUserVotedInCategory(
 
 export async function getVoteCountByNominee(nomineeId: string): Promise<number> {
   const [result] = await sql<{ count: string }[]>`
-    SELECT COUNT(*) as count
-    FROM votes
-    WHERE nominee_id = ${nomineeId}
+    SELECT COALESCE(SUM(CASE WHEN u.is_admin THEN 100 ELSE 1 END), 0) as count
+    FROM votes v
+    LEFT JOIN users u ON v.user_id = u.id
+    WHERE v.nominee_id = ${nomineeId}
   `;
-  return parseInt(result.count);
+  return parseInt(result.count || '0');
 }
 
 export async function getVoteCountByCategory(categoryId: string): Promise<number> {
   const [result] = await sql<{ count: string }[]>`
-    SELECT COUNT(*) as count
-    FROM votes
-    WHERE category_id = ${categoryId}
+    SELECT COALESCE(SUM(CASE WHEN u.is_admin THEN 100 ELSE 1 END), 0) as count
+    FROM votes v
+    LEFT JOIN users u ON v.user_id = u.id
+    WHERE v.category_id = ${categoryId}
   `;
-  return parseInt(result.count);
+  return parseInt(result.count || '0');
 }
 
 export async function getCategoryResults(categoryId: string) {
@@ -376,9 +338,10 @@ export async function getCategoryResults(categoryId: string) {
     SELECT 
       n.id as "nomineeId",
       n.name as "nomineeName",
-      COUNT(v.id) as "voteCount"
+      COALESCE(SUM(CASE WHEN u.is_admin THEN 100 ELSE 1 END), 0) as "voteCount"
     FROM nominees n
     LEFT JOIN votes v ON v.nominee_id = n.id
+    LEFT JOIN users u ON v.user_id = u.id
     WHERE n.category_id = ${categoryId}
     GROUP BY n.id, n.name
     ORDER BY "voteCount" DESC, n.name ASC
@@ -399,10 +362,11 @@ export async function getAllResults() {
       c.name as "categoryName",
       n.id as "nomineeId",
       n.name as "nomineeName",
-      COUNT(v.id) as "voteCount"
+      COALESCE(SUM(CASE WHEN u.is_admin THEN 100 ELSE 1 END), 0) as "voteCount"
     FROM categories c
     LEFT JOIN nominees n ON n.category_id = c.id
     LEFT JOIN votes v ON v.nominee_id = n.id
+    LEFT JOIN users u ON v.user_id = u.id
     GROUP BY c.id, c.name, n.id, n.name
     ORDER BY c.display_order ASC, "voteCount" DESC
   `;
@@ -410,12 +374,9 @@ export async function getAllResults() {
 }
 
 // ============================================================================
-// SESSION OPERATIONS (WITH SECURITY ENHANCEMENTS)
+// SESSION OPERATIONS
 // ============================================================================
 
-/**
- * Create session with IP binding (security enhancement)
- */
 export async function createSession(data: {
   id: string;
   userId: string;
@@ -430,9 +391,6 @@ export async function createSession(data: {
   `;
 }
 
-/**
- * Get session with all security metadata
- */
 export async function getSession(sessionId: string) {
   const [session] = await sql<Array<{
     id: string;
@@ -457,9 +415,6 @@ export async function getSession(sessionId: string) {
   return session || null;
 }
 
-/**
- * Update session activity timestamp
- */
 export async function updateSessionActivity(sessionId: string) {
   await sql`
     UPDATE sessions 
@@ -468,16 +423,10 @@ export async function updateSessionActivity(sessionId: string) {
   `;
 }
 
-/**
- * Delete session (logout)
- */
 export async function deleteSession(sessionId: string) {
   await sql`DELETE FROM sessions WHERE id = ${sessionId}`;
 }
 
-/**
- * Cleanup expired sessions
- */
 export async function cleanupExpiredSessions() {
   await sql`DELETE FROM sessions WHERE expires_at < NOW()`;
 }
@@ -532,7 +481,7 @@ export async function getAdminStats() {
     totalNominees: string;
   }>>`
     SELECT 
-      (SELECT COUNT(*) FROM votes) as "totalVotes",
+      (SELECT COALESCE(SUM(CASE WHEN u.is_admin THEN 100 ELSE 1 END), 0) FROM votes v LEFT JOIN users u ON v.user_id = u.id) as "totalVotes",
       (SELECT COUNT(*) FROM users) as "totalUsers",
       (SELECT COUNT(*) FROM categories) as "totalCategories",
       (SELECT COUNT(*) FROM nominees) as "totalNominees"
@@ -559,16 +508,17 @@ export async function getAdminStats() {
     name: string;
     voteCount: string;
   }>>`
-    SELECT c.id as "categoryId", c.name, COUNT(v.id) as "voteCount"
+    SELECT c.id as "categoryId", c.name, COALESCE(SUM(CASE WHEN u.is_admin THEN 100 ELSE 1 END), 0) as "voteCount"
     FROM categories c
     LEFT JOIN votes v ON v.category_id = c.id
+    LEFT JOIN users u ON v.user_id = u.id
     GROUP BY c.id, c.name
     ORDER BY "voteCount" DESC
     LIMIT 5
   `;
 
   return {
-    totalVotes: parseInt(stats.totalVotes),
+    totalVotes: parseInt(stats.totalVotes || '0'),
     totalUsers: parseInt(stats.totalUsers),
     totalCategories: parseInt(stats.totalCategories),
     totalNominees: parseInt(stats.totalNominees),
